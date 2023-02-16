@@ -42,6 +42,8 @@ eig_color <- c("#024140","#E1AD28","#D6936F",
 
 ##################################
 
+# https://www.bls.gov/cew/about-data/downloadable-file-layouts/quarterly/naics-based-quarterly-layout.htm
+
 unemployment_rate <- quick_unemp_rate()
 laborforce_rate <- quick_laborForce_rate()
 employment_rate <- quick_employed_rate()
@@ -80,33 +82,67 @@ qcew_2022_2 <- qcew_api(year = 2022,
          qtr="2", 
          slice="industry", # "industry", "area", or "size."
          sliceCode=10
-         ) %>% mutate(fips = area_fips)
-
-qcew_2022_2 <- within(qcew_2022_2, quantile <- as.integer(cut(oty_qtrly_contributions_pct_chg, unique(quantile(oty_qtrly_contributions_pct_chg, probs=seq(0,1,.01), na.rm = TRUE), include.lowest=TRUE))))
+         ) %>% mutate(fips = area_fips) %>% filter(own_code == 5)
+          
+qcew_2022_2 <- qcew_2022_2 %>% select(-quantile)
+qcew_2022_2 <- within(qcew_2022_2, quantile <- as.integer(cut(oty_taxable_qtrly_wages_pct_chg, unique(quantile(oty_taxable_qtrly_wages_pct_chg, probs=seq(0,1,.01), na.rm = TRUE), include.lowest=TRUE))))
 qcew_2022_2$quantile <- as.numeric(as.character(qcew_2022_2$quantile))
+
+qcew_2022_2 %>% 
+  ggplot(aes(x = quantile,
+             y = oty_taxable_qtrly_wages_pct_chg)) + 
+  geom_point()
 
 plot_usmap(data = qcew_2022_2,
            values = "quantile",
-           include = c("CA"),
+           # include = c("CA"),
            regions = "counties") + 
-  labs(title = "US Counties",
-       subtitle = "This is a map of the change in Contributions") + 
+  labs(title = "QCEW, Quarter 2 of 2022",
+       subtitle = "Quantile of Over-the-Year Percent Change in Quarterly Wages, Private Workers") + 
   scale_fill_continuous(
-    low = eig_color[1], high = eig_color[2], name = "quantile of the Change in Quarterly Contributions") + 
+    low = "yellow", high = "darkblue", name = "Quantile") + 
   theme(panel.background = element_rect(color = "black", fill = "white"),
         legend.position = "right")
 
 qcew_2022_2 <- qcew_2022_2 %>% select(-quantile)
-qcew_2022_2 <- within(qcew_2022_2, quantile <- as.integer(cut(oty_avg_wkly_wage_pct_chg, unique(quantile(oty_avg_wkly_wage_pct_chg, probs=seq(0,1,.01), na.rm = TRUE), include.lowest=TRUE))))
+qcew_2022_2 <- within(qcew_2022_2, quantile <- as.integer(cut(oty_qtrly_contributions_pct_chg, unique(quantile(oty_qtrly_contributions_pct_chg, probs=seq(0,1,.01), na.rm = TRUE), include.lowest=TRUE))))
 qcew_2022_2$quantile <- as.numeric(as.character(qcew_2022_2$quantile))
+
+qcew_2022_2 %>% 
+  ggplot(aes(x = quantile,
+             y = oty_qtrly_contributions_pct_chg)) + 
+  geom_point()
 
 plot_usmap(data = qcew_2022_2,
            values = "quantile",
-           include = c("CA"),
+           color = "white",
+           # include = c("CA"),
            regions = "counties") + 
-  labs(title = "US Counties",
-       subtitle = "This is a map of the change in wage") + 
+  labs(title = "QCEW, Quarter 2 of 2022",
+       subtitle = "Quantile of Over-the-Year Percent Change in Quarterly Contributions, Private Workers") + 
   scale_fill_continuous(
-    low = eig_color[1], high = eig_color[2], name = "quantile of the Change in wage") + 
+    low = "darkblue", high = "yellow", name = "Quantile") + 
+  theme(panel.background = element_rect(color = "black", fill = "white"),
+        legend.position = "right")
+
+
+qcew_2022_2 <- qcew_2022_2 %>% select(-quantile)
+qcew_2022_2 <- within(qcew_2022_2, quantile <- as.integer(cut(oty_qtrly_estabs_pct_chg, unique(quantile(oty_qtrly_estabs_pct_chg, probs=seq(0,1,.01), na.rm = TRUE), include.lowest=TRUE))))
+qcew_2022_2$quantile <- as.numeric(as.character(qcew_2022_2$quantile))
+
+qcew_2022_2 %>% 
+  ggplot(aes(x = quantile,
+             y = oty_qtrly_estabs_pct_chg)) + 
+  geom_point()
+
+plot_usmap(data = qcew_2022_2,
+           values = "quantile",
+           color = "white",
+           # include = c("CA"),
+           regions = "counties") + 
+  labs(title = "QCEW, Quarter 2 of 2022",
+       subtitle = "Quantile of Over-the-Year Percent Change in Quarterly Establishments, Private Workers") + 
+  scale_fill_continuous(
+    low = "darkblue", high = "yellow", name = "Quantile") + 
   theme(panel.background = element_rect(color = "black", fill = "white"),
         legend.position = "right")
