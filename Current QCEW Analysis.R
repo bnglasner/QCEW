@@ -37,6 +37,7 @@ setwd(path_qcew)
 
 ##################################
 ## QCEW Data Pull
+# https://www.bls.gov/cew/about-data/downloadable-file-layouts/quarterly/naics-based-quarterly-layout.htm
 
 data_2022 <- list()
 data_2021 <- list()
@@ -97,24 +98,28 @@ QCEW <- rbind(do.call(rbind, data_2022),
 quant_01 <- as.numeric(quantile(QCEW$oty_qtrly_estabs_pct_chg,probs = .01))
 quant_99 <- as.numeric(quantile(QCEW$oty_qtrly_estabs_pct_chg,probs = .99))
 
-QCEW$oty_qtrly_estabs_pct_chg[QCEW$oty_qtrly_estabs_pct_chg<quant_01 | QCEW$oty_qtrly_estabs_pct_chg>quant_99] <- 0
+# QCEW$oty_qtrly_estabs_pct_chg[QCEW$oty_qtrly_estabs_pct_chg<quant_01 | QCEW$oty_qtrly_estabs_pct_chg>quant_99] <- 0
 
 dynamic <- QCEW %>% mutate(year_quarter = year + qtr/4) %>% 
                         select(fips,year_quarter,
                                oty_qtrly_estabs_pct_chg) %>% 
+                        filter(oty_qtrly_estabs_pct_chg>quant_01 & oty_qtrly_estabs_pct_chg<quant_99) %>% 
                         na.omit() %>%
                         distinct()  
 
 plot <- plot_usmap(data = dynamic, 
                    values = "oty_qtrly_estabs_pct_chg", 
                    size = .1)  + 
-  scale_fill_gradientn(name    = "Percent Change", 
-                       colours = c("red", "white", "forestgreen"),
-                       breaks  = c(quant_01, 0, quant_99)) +
+  scale_fill_gradient2(name    = "Percent Change", 
+                       low = "red",
+                       mid = "white",
+                       high = "forestgreen",
+                       midpoint = 0) +
   theme(legend.position = "right", 
         plot.title = element_text(size=14), 
         legend.title = element_text(size=12),
-        panel.background = element_rect(fill = "transparent")) +
+        panel.background = element_rect(color = "transparent",
+                                        fill = "transparent")) +
   labs(title = "Over-the-Year Percent Change in Quarterly Establishments, Private Workers",
        subtitle = 'Year - {as.integer(frame_time)}') +
   transition_time(year_quarter) +
@@ -130,42 +135,127 @@ animate(plot,
 
 anim_save(filename = "qrt_chng_estab_2018-1_2022-2.gif")
 ##########################################################################
+# oty_qtrly_estabs_pct_chg, oty_taxable_qtrly_wages_pct_chg, oty_qtrly_contributions_pct_chg
+quant_01 <- as.numeric(quantile(QCEW$oty_month2_emplvl_pct_chg,probs = .01))
+quant_99 <- as.numeric(quantile(QCEW$oty_month2_emplvl_pct_chg,probs = .99))
 
+# QCEW$oty_qtrly_estabs_pct_chg[QCEW$oty_qtrly_estabs_pct_chg<quant_01 | QCEW$oty_qtrly_estabs_pct_chg>quant_99] <- 0
 
-# https://www.bls.gov/cew/about-data/downloadable-file-layouts/quarterly/naics-based-quarterly-layout.htm
+dynamic <- QCEW %>% mutate(year_quarter = year + qtr/4) %>% 
+  select(fips,year_quarter,
+         oty_month2_emplvl_pct_chg) %>% 
+  filter(oty_month2_emplvl_pct_chg>=quant_01 & oty_month2_emplvl_pct_chg<=quant_99) %>% 
+  na.omit() %>%
+  distinct()  
 
-# unemployment_rate <- quick_unemp_rate()
-# laborforce_rate <- quick_laborForce_rate()
-# employment_rate <- quick_employed_rate()
-# 
-# unemployment_rate <- unemployment_rate %>% 
-#   mutate(year_period = paste0(year,"-",periodName),
-#          group = "Unemployment Rate")
-# 
-# laborforce_rate <- laborforce_rate %>% 
-#   mutate(year_period = paste0(year,"-",periodName),
-#          group = "Labor Force Rate")
-# 
-# employment_rate <- employment_rate %>% 
-#   mutate(year_period = paste0(year,"-",periodName),
-#          group = "Employment Rate")
-# 
-# National <- rbind(unemployment_rate, employment_rate, laborforce_rate)
-# 
-# unemployment_rate %>% 
-#   ggplot(aes(x = year_period,
-#              y = value/100,
-#              group = group)) +
-#   geom_point() +
-#   geom_line() + 
-#   ylab("Unemployment Rate") +
-#   xlab("Year - Month") + coord_cartesian(ylim = c(0,.075)) +
-#   scale_y_continuous(labels = percent) + 
-#   theme_calc() +
-#   theme(legend.position = "bottom",
-#         axis.text.x = element_text(size = 11, angle = 90),
-#         axis.text.y = element_text(size = 11),
-#         axis.title = element_text(size = 12),
-#         title = element_text(size = 14))
+plot <- plot_usmap(data = dynamic, 
+                   values = "oty_month2_emplvl_pct_chg", 
+                   size = .1)  + 
+  scale_fill_gradient2(name    = "Percent Change", 
+                       low = "red",
+                       mid = "white",
+                       high = "forestgreen",
+                       midpoint = 0) +
+  theme(legend.position = "right", 
+        plot.title = element_text(size=14), 
+        legend.title = element_text(size=12),
+        panel.background = element_rect(color = "transparent",
+                                        fill = "transparent")) +
+  labs(title = "Over-the-Year Percent Change in Employment Level, Private Workers",
+       subtitle = 'Year - {as.integer(frame_time)}') +
+  transition_time(year_quarter) +
+  ease_aes('linear')
+
+animate(plot, 
+        height = 5, 
+        width = 8.5, 
+        units = "in", 
+        res = 150, 
+        end_pause = 10,
+        renderer = gifski_renderer())
+
+anim_save(filename = "qrt_chng_emplvl_2018-1_2022-2.gif")
 
 ##########################################################################
+# oty_qtrly_estabs_pct_chg, oty_taxable_qtrly_wages_pct_chg, oty_qtrly_contributions_pct_chg
+quant_01 <- as.numeric(quantile(QCEW$oty_avg_wkly_wage_pct_chg,probs = .01))
+quant_99 <- as.numeric(quantile(QCEW$oty_avg_wkly_wage_pct_chg,probs = .99))
+
+# QCEW$oty_qtrly_estabs_pct_chg[QCEW$oty_qtrly_estabs_pct_chg<quant_01 | QCEW$oty_qtrly_estabs_pct_chg>quant_99] <- 0
+
+dynamic <- QCEW %>% mutate(year_quarter = year + qtr/4) %>% 
+  select(fips,year_quarter,
+         oty_avg_wkly_wage_pct_chg) %>% 
+  filter(oty_avg_wkly_wage_pct_chg>=quant_01 & oty_avg_wkly_wage_pct_chg<=quant_99) %>% 
+  na.omit() %>%
+  distinct()  
+
+plot <- plot_usmap(data = dynamic, 
+                   values = "oty_avg_wkly_wage_pct_chg", 
+                   size = .1)  + 
+  scale_fill_gradient2(name    = "Percent Change", 
+                       low = "red",
+                       mid = "white",
+                       high = "forestgreen",
+                       midpoint = 0) +
+  theme(legend.position = "right", 
+        plot.title = element_text(size=14), 
+        legend.title = element_text(size=12),
+        panel.background = element_rect(color = "transparent",
+                                        fill = "transparent")) +
+  labs(title = "Over-the-Year Percent Change in Quarterly Average Wage, Private Workers",
+       subtitle = 'Year - {as.integer(frame_time)}') +
+  transition_time(year_quarter) +
+  ease_aes('linear')
+
+animate(plot, 
+        height = 5, 
+        width = 8.5, 
+        units = "in", 
+        res = 150, 
+        end_pause = 10,
+        renderer = gifski_renderer())
+
+anim_save(filename = "qrt_chng_avgwage_2018-1_2022-2.gif")
+
+##########################################################################
+# oty_qtrly_estabs_pct_chg, oty_taxable_qtrly_wages_pct_chg, oty_qtrly_contributions_pct_chg
+quant_01 <- as.numeric(quantile(QCEW$oty_qtrly_contributions_pct_chg,probs = .01))
+quant_99 <- as.numeric(quantile(QCEW$oty_qtrly_contributions_pct_chg,probs = .99))
+
+# QCEW$oty_qtrly_estabs_pct_chg[QCEW$oty_qtrly_estabs_pct_chg<quant_01 | QCEW$oty_qtrly_estabs_pct_chg>quant_99] <- 0
+
+dynamic <- QCEW %>% mutate(year_quarter = year + qtr/4) %>% 
+  select(fips,year_quarter,
+         oty_qtrly_contributions_pct_chg) %>% 
+  filter(oty_qtrly_contributions_pct_chg>=quant_01 & oty_qtrly_contributions_pct_chg<=quant_99) %>% 
+  na.omit() %>%
+  distinct()  
+
+plot <- plot_usmap(data = dynamic, 
+                   values = "oty_qtrly_contributions_pct_chg", 
+                   size = .1)  + 
+  scale_fill_gradient2(name    = "Percent Change", 
+                       low = "red",
+                       mid = "white",
+                       high = "forestgreen",
+                       midpoint = 0) +
+  theme(legend.position = "right", 
+        plot.title = element_text(size=14), 
+        legend.title = element_text(size=12),
+        panel.background = element_rect(color = "transparent",
+                                        fill = "transparent")) +
+  labs(title = "Over-the-Year Percent Change in Quarterly Contributions, Private Workers",
+       subtitle = 'Year - {as.integer(frame_time)}') +
+  transition_time(year_quarter) +
+  ease_aes('linear')
+
+animate(plot, 
+        height = 5, 
+        width = 8.5, 
+        units = "in", 
+        res = 150, 
+        end_pause = 10,
+        renderer = gifski_renderer())
+
+anim_save(filename = "qrt_chng_contribution_2018-1_2022-2.gif")
