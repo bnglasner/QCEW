@@ -113,7 +113,8 @@ plot <- plot_usmap(data = dynamic,
                        breaks  = c(quant_01, 0, quant_99)) +
   theme(legend.position = "right", 
         plot.title = element_text(size=14), 
-        legend.title = element_text(size=12)) +
+        legend.title = element_text(size=12),
+        panel.background = element_rect(fill = "transparent")) +
   labs(title = "Over-the-Year Percent Change in Quarterly Establishments, Private Workers",
        subtitle = 'Year - {as.integer(frame_time)}') +
   transition_time(year_quarter) +
