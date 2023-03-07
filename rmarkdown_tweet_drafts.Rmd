@@ -1,0 +1,359 @@
+---
+title: "Twitter Thread Draft - QCEW 2022 qrt 3"
+author: "Benjamin Glasner"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(usmap)
+library(ggplot2)
+library(ggforce)
+library(ggthemes)
+library(gganimate)
+library(ggrepel)
+library(gifski)
+library(scales)
+library(plm)
+library(blscrapeR)
+
+options(scipen=100000)
+```
+
+## R Markdown
+
+This is an R Markdown document. It will be updated with the most recent figures for the QCEW. Press the **Knit** button to generate a document with the updated figures and text.
+
+The first figure we want to generate is a summary of the most recent trend in aggregate Employment and Establishments:
+
+```{r data_download, echo=FALSE, results='hide',warning=FALSE, message=FALSE}
+##########################################################################
+# National 
+data_2022 <- list()
+data_2021 <- list()
+data_2020 <- list()
+data_2019 <- list()
+data_2018 <- list()
+
+for(i in 1:2){
+  data_2022[[i]] <- qcew_api(year = 2022,
+                             qtr=paste(i), 
+                             slice="area", # "industry", "area", or "size."
+                             sliceCode="US000") %>% # Consider Metro (USMSA) and nonmetro (USNMS)
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+for(i in 1:4){
+  data_2021[[i]] <- qcew_api(year = 2021,
+                             qtr=paste(i), 
+                             slice="area", # "industry", "area", or "size."
+                             sliceCode="US000") %>% # Consider Metro (USMSA) and nonmetro (USNMS)
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+for(i in 1:4){
+  data_2020[[i]] <- qcew_api(year = 2020,
+                             qtr=paste(i), 
+                             slice="area", # "industry", "area", or "size."
+                             sliceCode="US000") %>% # Consider Metro (USMSA) and nonmetro (USNMS)
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+for(i in 1:4){
+  data_2019[[i]] <- qcew_api(year = 2019,
+                             qtr=paste(i), 
+                             slice="area", # "industry", "area", or "size."
+                             sliceCode="US000") %>% # Consider Metro (USMSA) and nonmetro (USNMS)
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+for(i in 1:4){
+  data_2018[[i]] <- qcew_api(year = 2018,
+                             qtr=paste(i), 
+                             slice="area", # "industry", "area", or "size."
+                             sliceCode="US000") %>% # Consider Metro (USMSA) and nonmetro (USNMS)
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+
+```
+
+```{r aggregate, echo=FALSE, results='hide',warning=FALSE, message=FALSE}
+QCEW_National <- rbind(do.call(rbind, data_2022),
+                       do.call(rbind, data_2021),
+                       do.call(rbind, data_2020),
+                       do.call(rbind, data_2019),
+                       do.call(rbind, data_2018)) 
+
+emp_chg <- QCEW_National %>% 
+  filter(agglvl_code==11 & industry_code=="10") %>%
+  mutate(year_quarter = paste0(year,"-",qtr)) %>% 
+  select(year_quarter,industry_code,oty_month3_emplvl_pct_chg) %>% 
+  rename("value" = "oty_month3_emplvl_pct_chg") %>% 
+  mutate(variable = "Over-the-Year Change in Quarterly Employment (%)")
+
+estab_chg <- QCEW_National %>% 
+  filter(agglvl_code==11 & industry_code=="10") %>%
+  mutate(year_quarter = paste0(year,"-",qtr)) %>% 
+  select(year_quarter,industry_code,oty_qtrly_estabs_pct_chg) %>% 
+  rename("value" = "oty_qtrly_estabs_pct_chg") %>% 
+  mutate(variable = "Over-the-Year Change in Quarterly Estab. (%)")
+
+national_estab <- rbind(emp_chg,estab_chg)
+
+P <- national_estab %>% 
+ggplot(aes(x = year_quarter,
+           y = value/100,
+             group = industry_code)) + 
+  geom_hline(yintercept = 0, color = "black") +
+  geom_point() + 
+  geom_line() + 
+  labs(title = "Change in Employment and Establishments Across All Industries, Private Workers") +
+  xlab("Year-Quarter") +
+  scale_y_continuous(labels = percent) +
+  theme(legend.position = "right", 
+        plot.title = element_text(size=14), 
+        legend.title = element_text(size=12),
+        panel.background = element_rect(color = "transparent",
+                                        fill = "transparent"),
+        strip.background = element_rect(fill = "white"),
+        panel.spacing = unit(2, "lines"),
+        axis.text.x = element_text(angle = 90)) +
+  facet_wrap(variable~.)
+
+plot(P)
+```
+
+We are also interested in how growth rates vary by industry. We can plot the year-over-year change by industry and the change since the previous quarter.
+
+```{r emp_estab_pct_change, echo=FALSE, results='hide',warning=FALSE, message=FALSE}
+QCEW_National <- rbind(do.call(rbind, data_2022)) 
+
+QCEW_National <- QCEW_National %>% 
+  mutate(year_quarter_num = year + qtr/4,
+         label = if_else(year_quarter_num == max(year_quarter_num), as.character(industry_code), NA_character_)) %>% 
+  filter(industry_code!="99")
+
+P <- QCEW_National %>% 
+  mutate(positive = if_else(oty_month3_emplvl_pct_chg/100>0,1,
+                            if_else(oty_month3_emplvl_pct_chg/100<0,-1,0)),
+         `Quarterly Change in Emp.` = as.numeric(abs(oty_month3_emplvl_chg))) %>%
+  filter(agglvl_code==14 & industry_code!="10" & year_quarter_num==max(year_quarter_num)) %>% 
+  ggplot(aes(x = oty_month3_emplvl_pct_chg/100,
+             y = oty_qtrly_estabs_pct_chg/100,
+             color = positive)) +
+  geom_vline(xintercept = 0, color = "black") + 
+  geom_hline(yintercept = 0, color = "black") + 
+  geom_point(aes(size = `Quarterly Change in Emp.`)) +
+  geom_label_repel(aes(label = label),
+                   # nudge_x = 1,
+                   na.rm = TRUE) +
+  scale_color_gradient2(name    = "Percent Change",
+                        mid = "forestgreen") +
+  # scale_color_gradient2(name    = "Percent Change",
+  #                       low = "red",
+  #                       mid = "white",
+  #                       high = "forestgreen",
+  #                       midpoint = 0) +
+  scale_size_continuous(labels = comma) +
+  scale_x_continuous(labels = percent) +
+  scale_y_continuous(labels = percent) +
+  labs(title = "Changes in Establishments and Employment from the Previous Year, Private Workers") +
+  ylab("% Change in Establishments from the Previous Year") +
+  xlab("% Change in Employment from the Previous Year") +
+  theme(legend.position = "right", 
+        plot.title = element_text(size=14), 
+        legend.title = element_text(size=12),
+        panel.background = element_rect(color = "transparent",
+                                        fill = "transparent")) + 
+  guides(color = FALSE)
+
+plot(P)
+####################################################
+QCEW_National <- rbind(do.call(rbind, data_2022)) 
+
+QCEW_National <- QCEW_National %>% 
+  mutate(month = if_else(qtr == 1,3,
+                         if_else(qtr ==2, 6,
+                                 if_else(qtr==3,9,12))),
+         day = 1,
+         year_quarter = paste0(year,"-",qtr),
+         year_quarter_num = year + qtr/4,
+         label = if_else(year_quarter_num == max(year_quarter_num), as.character(industry_code), NA_character_)) %>% 
+  filter(industry_code!="99")
+
+QCEW_National$date <- as.Date(with(QCEW_National,paste(year,month,day,sep="-")),"%Y-%m-%d")
+
+QCEW_National_panel <- plm::pdata.frame(QCEW_National,index = c("industry_code","date"))
+QCEW_National_panel$qtrly_estabs_chg <- diff(QCEW_National_panel$qtrly_estabs)
+QCEW_National_panel$qtrly_estabs_lag <- lag(QCEW_National_panel$qtrly_estabs)
+
+QCEW_National_panel$month3_emplvl_chg <- diff(QCEW_National_panel$month3_emplvl)
+QCEW_National_panel$month3_emplvl_lag <- lag(QCEW_National_panel$month3_emplvl)
+
+QCEW_National_panel <- QCEW_National_panel %>% mutate(qtrly_estabs_pct_chg = (qtrly_estabs - qtrly_estabs_lag)/qtrly_estabs_lag,
+                                                      qtrly_emp_pct_chg = (month3_emplvl - month3_emplvl_lag)/month3_emplvl_lag)
+
+P <- QCEW_National_panel %>% 
+  as.data.frame() %>% 
+  mutate(positive = if_else(qtrly_emp_pct_chg>0,1,
+                            if_else(qtrly_emp_pct_chg<0,-1,0)),
+         `Quarterly Change in Emp.` = as.numeric(abs(month3_emplvl_chg)),
+         qtrly_emp_pct_chg = as.numeric(qtrly_emp_pct_chg),
+         qtrly_estabs_pct_chg = as.numeric(qtrly_estabs_pct_chg)) %>%
+  filter(agglvl_code==14 & industry_code!="10" & year_quarter_num==max(year_quarter_num)) %>%
+  ggplot(aes(x = qtrly_emp_pct_chg,
+             y = qtrly_estabs_pct_chg,
+             color = positive)) +
+  geom_vline(xintercept = 0, color = "black") + 
+  geom_hline(yintercept = 0, color = "black") + 
+  geom_point(aes(size = `Quarterly Change in Emp.`)) +
+  geom_label_repel(aes(label = label),
+                   # nudge_x = 1,
+                   na.rm = TRUE) + 
+  scale_color_gradient2(name    = "Percent Change", 
+                       low = "red",
+                       mid = "white",
+                       high = "forestgreen",
+                       midpoint = 0) +
+  scale_size_continuous(labels = comma) +
+  scale_x_continuous(labels = percent) +
+  scale_y_continuous(labels = percent) +
+  labs(title = "Changes in Establishments and Employment from the Previous Quarter, Private Workers") +
+  ylab("% Change in Establishments from the Previous Quarter") +
+  xlab("% Change in Employment from the Previous Quarter") +
+  theme(legend.position = "right", 
+        plot.title = element_text(size=14), 
+        legend.title = element_text(size=12),
+        panel.background = element_rect(color = "transparent",
+                                        fill = "transparent")) + 
+  guides(color = FALSE) 
+
+plot(P)
+
+```
+
+If we want to see what industry level trends look like over time, we can plot those as well (broken out by two-digit NAICS code).
+
+```{r industry_changes, echo=FALSE, results='hide',warning=FALSE, message=FALSE}
+QCEW_National <- rbind(do.call(rbind, data_2022),
+                       do.call(rbind, data_2021),
+                       do.call(rbind, data_2020),
+                       do.call(rbind, data_2019))
+P <- QCEW_National %>% 
+  filter(agglvl_code==14 & industry_code!="10") %>%
+  mutate(year_quarter = paste0(year,"-",qtr),
+         year_quarter_num = year + qtr/4,
+         label = if_else(year_quarter_num == max(year_quarter_num), as.character(industry_code), NA_character_)) %>% 
+  ggplot(aes(x = year_quarter,
+             y = month3_emplvl/1000,
+             group = industry_code,
+             color = industry_code)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_label_repel(aes(label = label),
+                   nudge_x = 1,
+                   segment.curvature = -0.1,
+                   segment.ncp = 3,
+                   segment.angle = 20,
+                   segment.linetype = 3,
+                   na.rm = TRUE) + 
+  labs(title = "National Employment by two-digit NAICS, Private Workers") +
+  ylab("Month 3 Employment per Quarter (Thousands)") +
+  xlab("Year-Quarter") +
+  scale_y_continuous(labels = comma) + 
+  theme(legend.position = "right", 
+        plot.title = element_text(size=14), 
+        legend.title = element_text(size=12),
+        panel.background = element_rect(color = "transparent",
+                                        fill = "transparent")) +
+  guides(color = FALSE)
+
+plot(P)
+
+####################################################################
+
+P <- QCEW_National %>% 
+  filter(agglvl_code==14 & industry_code!="10") %>%
+  mutate(year_quarter = paste0(year,"-",qtr),
+         year_quarter_num = year + qtr/4,
+         label = if_else(year_quarter_num == max(year_quarter_num), as.character(industry_code), NA_character_)) %>% 
+  ggplot(aes(x = year_quarter,
+             y = qtrly_estabs/1000,
+             group = industry_code,
+             color = industry_code)) + 
+  geom_point() + 
+  geom_line() + 
+  geom_label_repel(aes(label = label),
+                   nudge_x = 1,
+                   segment.curvature = -0.1,
+                   segment.ncp = 3,
+                   segment.angle = 20,
+                   segment.linetype = 3,
+                   na.rm = TRUE) + 
+  scale_y_continuous(labels = comma) + 
+  labs(title = "National Establishment by two-digit NAICS, Private Workers") +
+  ylab("Establishments (Thousands)") +
+  xlab("Year-Quarter") +
+  theme(legend.position = "right", 
+        plot.title = element_text(size=14), 
+        legend.title = element_text(size=12),
+        panel.background = element_rect(color = "transparent",
+                                        fill = "transparent")) +
+  guides(color = FALSE)
+
+plot(P)
+
+
+```
+
+```{r qcew_industry, echo=FALSE, results='hide',warning=FALSE, message=FALSE}
+
+data_2022 <- list()
+data_2021 <- list()
+data_2020 <- list()
+data_2019 <- list()
+
+for(i in 1:2){
+  data_2022[[i]] <- qcew_api(year = 2022,
+                             qtr=paste(i), 
+                             slice="industry", # "industry", "area", or "size."
+                             sliceCode=10) %>% 
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+for(i in 1:4){
+  data_2021[[i]] <- qcew_api(year = 2021,
+                             qtr=paste(i), 
+                             slice="industry", # "industry", "area", or "size."
+                             sliceCode=10) %>% 
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+for(i in 1:4){
+  data_2020[[i]] <- qcew_api(year = 2020,
+                             qtr=paste(i), 
+                             slice="industry", # "industry", "area", or "size."
+                             sliceCode=10) %>% 
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+for(i in 1:4){
+  data_2019[[i]] <- qcew_api(year = 2019,
+                             qtr=paste(i), 
+                             slice="industry", # "industry", "area", or "size."
+                             sliceCode=10) %>% 
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+
+
+QCEW_industry <- rbind(do.call(rbind, data_2022),
+                       do.call(rbind, data_2021),
+                       do.call(rbind, data_2020),
+                       do.call(rbind, data_2019))
+```
+
+
