@@ -208,6 +208,7 @@ QCEW_industry_list[[1]] <- rbind(do.call(rbind, industry_2022),
                                  do.call(rbind, industry_2019))
 
 QCEW_industry_list[[2]] <- rbind(do.call(rbind, industry_2022)) # Create data for the top and bottom five list figures
+QCEW_industry_list[[2]]$state <- substr(QCEW_industry_list[[2]]$fips,start = 1, stop = 2)
 
 # Combine the national data
 QCEW_national_list[[1]] <- rbind(do.call(rbind, national_2022),
@@ -487,7 +488,7 @@ lowest <- QCEW_industry_list[[2]] %>%
   arrange(oty_month3_emplvl_pct_chg) %>%
   select(NAME,population,month3_emplvl,oty_month3_emplvl_chg,oty_month3_emplvl_pct_chg) %>% 
   na.omit() %>% 
-  head() %>%
+  head(5) %>%
   mutate(Change = "Over-the-Year Reduction")
 
 highest <- QCEW_industry_list[[2]] %>% 
@@ -498,7 +499,7 @@ highest <- QCEW_industry_list[[2]] %>%
   arrange(-oty_month3_emplvl_pct_chg) %>%
   select(NAME,population,month3_emplvl,oty_month3_emplvl_chg,oty_month3_emplvl_pct_chg) %>% 
   na.omit() %>% 
-  head() %>%
+  head(5) %>%
   mutate(Change = "Over-the-Year Growth")
 
 change <- rbind(lowest,highest) %>%
@@ -540,22 +541,22 @@ lowest <- QCEW_industry_list[[2]] %>%
   mutate(fips = as.numeric(as.character(fips)),
          year_quarter = year + qtr/4) %>%
   left_join(population) %>% 
-  filter(population>=100000 & year_quarter==max(year_quarter)) %>%
+  filter(population>=100000 & year_quarter==max(year_quarter) & state!="53") %>%
   arrange(oty_qtrly_estabs_pct_chg) %>%
   select(NAME,population,month3_emplvl,oty_qtrly_estabs_chg,oty_qtrly_estabs_pct_chg) %>% 
   na.omit() %>% 
-  head() %>%
+  head(5) %>%
   mutate(Change = "Over-the-Year Reduction")
 
 highest <- QCEW_industry_list[[2]] %>% 
   mutate(fips = as.numeric(as.character(fips)),
          year_quarter = year + qtr/4) %>%
   left_join(population) %>% 
-  filter(population>=100000 & year_quarter==max(year_quarter)) %>%
+  filter(population>=100000 & year_quarter==max(year_quarter) & state!="53") %>%
   arrange(-oty_qtrly_estabs_pct_chg) %>%
   select(NAME,population,month3_emplvl,oty_qtrly_estabs_chg,oty_qtrly_estabs_pct_chg) %>% 
   na.omit() %>% 
-  head() %>%
+  head(5) %>%
   mutate(Change = "Over-the-Year Growth")
 
 change <- rbind(lowest,highest) %>%
@@ -602,7 +603,7 @@ lowest <- QCEW_industry_list[[2]] %>%
   arrange(oty_avg_wkly_wage_pct_chg) %>%
   select(NAME,population,month3_emplvl,oty_avg_wkly_wage_chg,oty_avg_wkly_wage_pct_chg) %>% 
   na.omit() %>% 
-  head() %>%
+  head(5) %>%
   mutate(Change = "Over-the-Year Reduction")
 
 highest <- QCEW_industry_list[[2]] %>% 
@@ -613,7 +614,7 @@ highest <- QCEW_industry_list[[2]] %>%
   arrange(-oty_avg_wkly_wage_pct_chg) %>%
   select(NAME,population,month3_emplvl,oty_avg_wkly_wage_chg,oty_avg_wkly_wage_pct_chg) %>% 
   na.omit() %>% 
-  head() %>%
+  head(5) %>%
   mutate(Change = "Over-the-Year Growth")
 
 change <- rbind(lowest,highest) %>%
