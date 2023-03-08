@@ -20,7 +20,7 @@
 ##################
 options(scipen=100000)
 file_date <- "2022_qrt3"
-Most_recent_qrt <- 2 # This can take the values from 1:4
+Most_recent_qrt <- 3 # This can take the values from 1:4
 ##################
 ###  Library   ###
 ##################
@@ -411,6 +411,8 @@ dev.off()
 #     4. Industry level growth rates for establishments - Time Series
 theme_set(theme_classic())
 
+QCEW_national_list[[2]] %>% filter(year_quarter_num==max(year_quarter_num)) %>% filter(oty_qtrly_estabs_chg == max(oty_qtrly_estabs_chg)) %>% select(industry_code,industry_name,oty_qtrly_estabs_chg,oty_month3_emplvl_chg)
+
 yvals <- round(QCEW_national_list[[2]]$qtrly_estabs[QCEW_national_list[[2]]$year_quarter_num == min(QCEW_national_list[[2]]$year_quarter_num)],0)
 ylabs <- QCEW_national_list[[2]] %>% filter(year_quarter_num == min(year_quarter_num)) %>% 
   select(industry_name)
@@ -441,6 +443,8 @@ plot(P)
 dev.off()
 #####################################################################
 #     5. Industry level growth rates for employment - Time Series
+QCEW_national_list[[2]] %>% filter(year_quarter_num==max(year_quarter_num)) %>% filter(oty_month3_emplvl_chg == max(oty_month3_emplvl_chg)) %>% select(industry_code,industry_name,oty_qtrly_estabs_chg,oty_month3_emplvl_chg)
+
 yvals <- round(QCEW_national_list[[2]]$month3_emplvl[QCEW_national_list[[2]]$year_quarter_num == min(QCEW_national_list[[2]]$year_quarter_num)])
 ylabs <- QCEW_national_list[[2]] %>% filter(year_quarter_num == min(year_quarter_num)) %>% 
   select(industry_name)
@@ -532,7 +536,6 @@ dev.off()
 #####################################################################
 #     7. Top and bottom five counties for establishment growth
 theme_set(theme_classic())
-
 lowest <- QCEW_industry_list[[2]] %>% 
   mutate(fips = as.numeric(as.character(fips)),
          year_quarter = year + qtr/4) %>%
