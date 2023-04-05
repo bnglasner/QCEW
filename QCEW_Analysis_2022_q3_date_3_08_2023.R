@@ -304,7 +304,7 @@ animate(plot,
         height = 5, 
         width = 8.5, 
         units = "in", 
-        res = 250, 
+        res = 150, 
         end_pause = 50,
         renderer = gifski_renderer())
 
@@ -358,7 +358,7 @@ animate(plot,
         height = 5, 
         width = 8.5, 
         units = "in", 
-        res = 250, 
+        res = 150, 
         end_pause = 50,
         renderer = gifski_renderer())
 
@@ -647,5 +647,263 @@ P <- change %>%
   coord_flip()
 
 png(filename = paste0("high_low_weeklywage_",file_date,".png"),width = 750,height = 500)
+plot(P)
+dev.off()
+
+
+
+################################################################################################################################################################
+#########################
+### Twitter additions ###
+#########################
+########
+# QCEW Data Pull
+# https://www.bls.gov/cew/about-data/downloadable-file-layouts/quarterly/naics-based-quarterly-layout.htm
+# Industry level pull 
+
+prof_df <- qcew_api(year = 2022,
+                                 qtr=3, 
+                                 slice="industry", # "industry", "area", or "size."
+                                 sliceCode=54) %>% 
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5 & agglvl_code==74)
+
+# Build the data for a map of the US - 
+dynamic <- prof_df %>% 
+  mutate(fips = as.numeric(as.character(fips))) %>% 
+  select(area_fips,fips, # This is where you need to select the dependent variables for the map
+         oty_month3_emplvl_chg,
+         oty_month3_emplvl_pct_chg,
+         oty_qtrly_estabs_chg,
+         oty_qtrly_estabs_pct_chg
+  ) %>% 
+  na.omit() %>%
+  distinct()  
+
+dynamic <- inner_join(dynamic,us_county_latlng)
+dynamic <- dynamic %>%  rename("GEOID" = "area_fips")
+
+dynamic <- inner_join(counties, dynamic)
+
+# Cap the visual % change for our two map dependent variables at 25% in either direction. This improves the figure's visual appeal
+dynamic$oty_month3_emplvl_pct_chg_edit <- dynamic$oty_month3_emplvl_pct_chg
+dynamic$oty_month3_emplvl_pct_chg_edit[dynamic$oty_month3_emplvl_pct_chg_edit>25] <- 25
+dynamic$oty_month3_emplvl_pct_chg_edit[dynamic$oty_month3_emplvl_pct_chg_edit<(-25)] <- (-25)
+
+dynamic$oty_qtrly_estabs_pct_chg_edit <- dynamic$oty_qtrly_estabs_chg
+dynamic$oty_qtrly_estabs_pct_chg_edit[dynamic$oty_qtrly_estabs_pct_chg_edit>25] <- 25
+dynamic$oty_qtrly_estabs_pct_chg_edit[dynamic$oty_qtrly_estabs_pct_chg_edit<(-25)] <- (-25)
+
+plot <- dynamic %>% 
+  ggplot() +
+  labs(title = "Over-the-Year Change in Professional Services (NAICS 54) Establishments, Private Workers",
+       subtitle = "2022, Quarter 3",
+       caption = "Max % Change at +/- 25% for the Color Range") +
+  geom_sf(color = "grey90",
+          fill = "white") +
+  geom_point(mapping = aes(x = lng,
+                           y = lat,
+                           size = abs(oty_qtrly_estabs_chg),
+                           color = oty_qtrly_estabs_pct_chg_edit),
+             alpha = 0.5) +
+  scale_color_gradient2(name = "Percent Change", 
+                        low = "red",
+                        mid = "white",
+                        high = "forestgreen",
+                        midpoint = 0) +
+  scale_size_continuous(labels = comma) +
+  theme_map() +
+  theme(legend.position="bottom",
+        plot.title = element_text(hjust = 0.5,
+                                  color = "Gray40",
+                                  size = 16,
+                                  face = "bold"),
+        plot.subtitle = element_text(hjust = 0.5,size = 14,color = "Gray40"),
+        plot.caption = element_text(hjust = 0.5,size = 14,color = "Gray60")) +
+  guides(color = guide_colorbar(title = "Change in Establishments (%)",
+                                title.position = "top",
+                                title.theme = element_text(size = 10,
+                                                           face = "bold",
+                                                           colour = "gray70",
+                                                           angle = 0),
+                                order = 1),
+         size = guide_legend(title = "Change in Establishments (#)",
+                             title.position = "top",
+                             title.theme = element_text(size = 10,
+                                                        face = "bold",
+                                                        colour = "gray70",
+                                                        angle = 0),
+                             order = 2)) 
+
+png(filename = paste0("qrt_chng_estab_NAICS54_2019_qtr1_",file_date,".png"),width = 800,height = 800)
+plot
+dev.off()
+
+
+########
+# What is happening in Washington?
+# PLot time series for WA state
+# National level pull
+
+
+washington_2022 <- list()
+washington_2021 <- list()
+washington_2020 <- list()
+washington_2019 <- list()
+
+QCEW_washington_list <- list()
+
+for(i in 1:Most_recent_qrt){
+  washington_2022[[i]] <- qcew_api(year = 2022,
+                                 qtr=paste(i), 
+                                 slice="area", # "industry", "area", or "size."
+                                 sliceCode="53000") %>% # Consider Metro (USMSA) and nonmetro (USNMS)
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+for(i in 1:4){
+  washington_2021[[i]] <- qcew_api(year = 2021,
+                                 qtr=paste(i), 
+                                 slice="area", # "industry", "area", or "size."
+                                 sliceCode="53000") %>% # Consider Metro (USMSA) and nonmetro (USNMS)
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+
+# Combine the national data
+QCEW_washington_list[[1]] <- rbind(do.call(rbind, washington_2022),
+                                 do.call(rbind, washington_2021)) %>% 
+  filter(agglvl_code==54 & industry_code!="10" & industry_code!="99") %>% 
+  mutate(year_quarter_num = year + qtr/4) 
+
+QCEW_washington_list[[1]] <- left_join(QCEW_washington_list[[1]],industry_crosswalk)
+QCEW_washington_list[[1]]$qtrly_estabs <- round(QCEW_washington_list[[1]]$qtrly_estabs/100,0)
+QCEW_washington_list[[1]]$month3_emplvl <- round(QCEW_washington_list[[1]]$month3_emplvl/100,0)
+
+yvals <- round(QCEW_washington_list[[1]]$qtrly_estabs[QCEW_washington_list[[1]]$year_quarter_num == min(QCEW_washington_list[[1]]$year_quarter_num)],0)
+ylabs <- QCEW_washington_list[[1]] %>% filter(year_quarter_num == min(year_quarter_num)) %>% 
+  select(industry_name)
+ylabs <- ylabs[,1]
+
+df <- QCEW_washington_list[[1]] %>% mutate(x=factor(year_quarter_num, levels=c(2021.25,2021.5,2021.75,2022,2022.25,2022.5,2022.75), 
+                                                  labels=c("2021-1","2021-2","2021-3","2021-4","2022-1","2022-2","2022-3")), 
+                                         y=qtrly_estabs,
+                                         group = as.factor(industry_name)) %>% select(x,y,group)
+theme_set(theme_classic())
+
+P <- df %>% 
+  ggplot(aes(x=x,
+             y=y)) +
+  geom_line(aes(group=group),colour="grey80") +
+  geom_point(colour="white",size=8) +
+  geom_text(aes(label=y), 
+            size=3) +
+  scale_y_continuous(name="", breaks=yvals, labels=ylabs) +
+  labs(title="Quarterly Establishments (Hundreds)") + 
+  theme(axis.title=element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust=0.5,
+                                  face="bold"),
+        axis.text = element_text(face="bold"))
+
+png(filename = paste0("Industry_change_estab_washington_",file_date,".png"),width = 1000 ,height = 1000)
+plot(P)
+dev.off()
+
+yvals <- round(QCEW_washington_list[[1]]$month3_emplvl[QCEW_washington_list[[1]]$year_quarter_num == min(QCEW_washington_list[[1]]$year_quarter_num)])
+ylabs <- QCEW_washington_list[[1]] %>% filter(year_quarter_num == min(year_quarter_num)) %>% 
+  select(industry_name)
+ylabs <- ylabs[,1]
+
+df <- QCEW_washington_list[[1]]  %>% mutate(x=factor(year_quarter_num, levels=c(2021.25,2021.5,2021.75,2022,2022.25,2022.5), 
+                                                   labels=c("2021-1","2021-2","2021-3","2021-4","2022-1","2022-2")), 
+                                          y=month3_emplvl,
+                                          group = as.factor(industry_name)) %>% select(x,y,group)
+
+P <- df %>% 
+  ggplot(aes(x=x,
+             y=y)) +
+  geom_line(aes(group=group),colour="grey80") +
+  geom_point(colour="white",size=8) +
+  geom_text(aes(label=y), 
+            size=3) +
+  scale_y_continuous(name="", breaks=yvals, labels=ylabs) +
+  labs(title="Employment in Month Three (Thousands)") + 
+  theme(axis.title=element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust=0.5,
+                                  face="bold"),
+        axis.text = element_text(face="bold"))
+
+
+png(filename = paste0("Industry_change_emp_washington_",file_date,".png"),width = 1000,height = 1000)
+plot(P)
+dev.off()
+
+########
+# What is happening in Washington?
+# PLot time series for WA state
+# National level pull
+
+
+maine_2022 <- list()
+maine_2021 <- list()
+
+QCEW_maine_list <- list()
+
+for(i in 1:Most_recent_qrt){
+  maine_2022[[i]] <- qcew_api(year = 2022,
+                                   qtr=paste(i), 
+                                   slice="area", # "industry", "area", or "size."
+                                   sliceCode="23000") %>% # Consider Metro (USMSA) and nonmetro (USNMS)
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+for(i in 1:4){
+  maine_2021[[i]] <- qcew_api(year = 2021,
+                                   qtr=paste(i), 
+                                   slice="area", # "industry", "area", or "size."
+                                   sliceCode="23000") %>% # Consider Metro (USMSA) and nonmetro (USNMS)
+    mutate(fips = area_fips) %>% 
+    filter(own_code == 5)
+}
+
+# Combine the national data
+QCEW_maine_list[[1]] <- rbind(do.call(rbind, maine_2022),
+                                   do.call(rbind, maine_2021)) %>% 
+  filter(agglvl_code==54 & industry_code!="10" & industry_code!="99") %>% 
+  mutate(year_quarter_num = year + qtr/4) 
+
+QCEW_maine_list[[1]] <- left_join(QCEW_maine_list[[1]],industry_crosswalk)
+QCEW_maine_list[[1]]$qtrly_estabs <- round(QCEW_maine_list[[1]]$qtrly_estabs/100,0)
+QCEW_maine_list[[1]]$month3_emplvl <- round(QCEW_maine_list[[1]]$month3_emplvl/100,0)
+
+yvals <- round(QCEW_maine_list[[1]]$qtrly_estabs[QCEW_maine_list[[1]]$year_quarter_num == min(QCEW_maine_list[[1]]$year_quarter_num)],0)
+ylabs <- QCEW_maine_list[[1]] %>% filter(year_quarter_num == min(year_quarter_num)) %>% 
+  select(industry_name)
+ylabs <- ylabs[,1]
+
+df <- QCEW_maine_list[[1]] %>% mutate(x=factor(year_quarter_num, levels=c(2021.25,2021.5,2021.75,2022,2022.25,2022.5,2022.75), 
+                                                    labels=c("2021-1","2021-2","2021-3","2021-4","2022-1","2022-2","2022-3")), 
+                                           y=qtrly_estabs,
+                                           group = as.factor(industry_name)) %>% select(x,y,group)
+theme_set(theme_classic())
+
+P <- df %>% 
+  ggplot(aes(x=x,
+             y=y)) +
+  geom_line(aes(group=group),colour="grey80") +
+  geom_point(colour="white",size=8) +
+  geom_text(aes(label=y), 
+            size=3) +
+  scale_y_continuous(name="", breaks=yvals, labels=ylabs) +
+  labs(title="Quarterly Establishments (Hundreds), Maine") + 
+  theme(axis.title=element_blank(),
+        axis.ticks = element_blank(),
+        plot.title = element_text(hjust=0.5,
+                                  face="bold"),
+        axis.text = element_text(face="bold"))
+
+png(filename = paste0("Industry_change_estab_maine_",file_date,".png"),width = 1000 ,height = 1000)
 plot(P)
 dev.off()
