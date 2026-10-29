@@ -1,0 +1,22 @@
+# Canonical metadata for Codex native subagent wrappers.
+# Tab-separated. Columns: name<TAB>reasoning_effort<TAB>sandbox_mode<TAB>description
+# Used by Infrastructure/scripts/manage_generated_copies.sh to emit .codex/agents/<name>.toml.
+# Add a row whenever a new agent is added under Infrastructure/agents/.
+# Lines starting with '#' and blank lines are ignored.
+#
+# Defaults applied when an agent has no row in this file:
+#   reasoning_effort = medium
+#   sandbox_mode     = workspace-write
+#   description      = Repository specialist for <name> tasks defined in canonical Infrastructure guidance.
+#
+ai-skeptic	high	workspace-write	AI-specific research reviewer for fabrication, hidden assumptions, edge cases, and confidence calibration.
+code-reviewer	high	workspace-write	Research code reviewer focused on bugs, correctness, and material quality issues.
+conceptual-consistency-reviewer	high	workspace-write	Document-to-code consistency reviewer for empirical claims and narrative alignment.
+data-consistency-reviewer	high	workspace-write	Number verification reviewer that traces document claims back to code and data.
+eig-data-viz	medium	workspace-write	EIG data-visualization specialist for building or revising figures and tables.
+eig-reviewer	medium	workspace-write	EIG writing and style reviewer for prose, citations, figures, and presentation consistency.
+eig-style-guide-agent	medium	workspace-write	EIG style-system specialist for chart, table, and Datawrapper compliance work.
+eig-writer	medium	workspace-write	EIG writing specialist for drafting, revising, and tightening policy or research prose.
+maintenance-agent	high	workspace-write	Repository maintenance specialist for drift checks, freshness checks, and hygiene audits.
+methodology-reviewer	high	workspace-write	Econometrics and methodology reviewer for research design, assumptions, and inference risks.
+orchestrator	high	workspace-write	Top-level coordinator that routes work across review, style, and maintenance specialists.

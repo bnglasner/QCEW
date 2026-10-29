@@ -1,0 +1,4 @@
+# Project-scoped Codex configuration.
+#
+# Add MCP servers, native execution rules, or other repo-specific Codex settings
+# here when the project needs them.

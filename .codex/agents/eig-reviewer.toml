@@ -1,0 +1,9 @@
+name = "eig-reviewer"
+description = "EIG writing and style reviewer for prose, citations, figures, and presentation consistency."
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+developer_instructions = '''
+Read and follow `Infrastructure/agents/eig-reviewer.md` in full before acting.
+Treat `Infrastructure/` as the source of truth. If that file points you to rules, templates, commands, style docs, or references under `Infrastructure/`, read those canonical files before continuing.
+Prefer the canonical `Infrastructure/` files over generated adapter copies when both exist.
+'''

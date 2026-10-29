@@ -1,0 +1,23 @@
+.DS_Store
+**/.DS_Store
+
+__pycache__/
+*.py[cod]
+
+# R session / project artifacts
+.Rhistory
+.RData
+.Rapp.history
+.Rproj.user/
+*.Rproj
+
+# Run logs produced by code/run_all.R
+output/logs/
+
+# Pipeline data checkpoints (regenerable from code/01 and code/02)
+data/processed/*.rds
+data/processed/*.parquet
+!data/processed/.gitkeep
+
+# Cached BLS QCEW open-data slice CSVs (re-downloaded on demand by read_qcew_slice)
+data/raw/qcew_slices/

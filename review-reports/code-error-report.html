@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QCEW Rebuild — Code Error & Efficiency Report</title>
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:980px;margin:2rem auto;padding:0 1.2rem;color:#1a1a1a;line-height:1.5}
+  h1{border-bottom:3px solid #333;padding-bottom:.4rem}
+  h2{margin-top:2rem;border-bottom:1px solid #ccc;padding-bottom:.2rem}
+  .meta{color:#555;font-size:.9rem}
+  .card{border:1px solid #ddd;border-left-width:6px;border-radius:6px;padding:.8rem 1rem;margin:1rem 0;background:#fafafa}
+  .CRITICAL{border-left-color:#b00020}.HIGH{border-left-color:#e65100}.MEDIUM{border-left-color:#f9a825}.LOW{border-left-color:#2e7d32}.SUGGESTION{border-left-color:#1565c0}.INFO{border-left-color:#6a1b9a}
+  .badge{display:inline-block;color:#fff;font-size:.72rem;font-weight:700;padding:.12rem .5rem;border-radius:10px;letter-spacing:.03em}
+  .b-CRITICAL{background:#b00020}.b-HIGH{background:#e65100}.b-MEDIUM{background:#f9a825;color:#222}.b-LOW{background:#2e7d32}.b-SUGGESTION{background:#1565c0}.b-INFO{background:#6a1b9a}
+  .status{font-size:.8rem;font-weight:700}
+  .fixed{color:#2e7d32}.open{color:#b00020}.advisory{color:#1565c0}
+  code,pre{background:#f0f0f0;border-radius:4px}
+  pre{padding:.7rem;overflow:auto;font-size:.82rem}
+  code{padding:.05rem .3rem;font-size:.85rem}
+  table{border-collapse:collapse;width:100%;font-size:.88rem;margin:1rem 0}
+  th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;vertical-align:top}
+  th{background:#f0f0f0}
+  .k{font-weight:700}
+</style>
+</head>
+<body>
+<h1>Code Error &amp; Efficiency Report</h1>
+<p class="meta">Project: QCEW Employment &amp; Establishment Dynamics · Target: code/ (refactored pipeline + archived legacy script) · Date: 2026-06-05 · Reviewer rules: <code>.claude/rules/code-quality-rules.md</code></p>
+
+<p>This report covers the legacy monolith (<code>archive/QCEW_Analysis_2022_q3_date_3_08_2023.R</code>) and the refactored pipeline (<code>code/00_setup.R</code> through <code>code/06_figures_spotlight.R</code>). Each finding lists a <span class="status">Status</span>: <span class="fixed">Fixed</span> (resolved in the refactor), <span class="open">Open</span> (requires action before the pipeline will run/be correct), or <span class="advisory">Advisory</span>.</p>
+
+<h2>Findings (CRITICAL → SUGGESTION)</h2>
+
+<div class="card CRITICAL">
+<span class="badge b-CRITICAL">CRITICAL</span> <span class="k">CE-001 — Defunct data dependency: <code>blscrapeR::qcew_api()</code> removed</span> · <span class="status open">Status: Open (handoff blocker)</span>
+<p><b>What:</b> Every QCEW pull calls <code>blscrapeR::qcew_api()</code>. Verified via the package NEWS/changelog: <code>qcew_api()</code> (and the package's mapping functions) were removed from blscrapeR. The pipeline will not run until the data source is migrated.</p>
+<p><b>Verified:</b> blscrapeR NEWS (keberwein/blscrapeR), 2024 — "removed <code>qcew_api</code>" and "removed all mapping functions and data."</p>
+<p><b>Recommended fix:</b> Replace the <code>qcew_api()</code> call inside the existing year-quarter grid loop with a reader for the BLS QCEW open-data slice CSVs (<code>https://www.bls.gov/cew/downloadable-data-files.htm</code>), preserving columns <code>area_fips, own_code, agglvl_code, industry_code, qtrly_estabs, month3_emplvl, oty_*</code>. The loop, filters, and all downstream logic stay unchanged. Annotated inline in <code>01_build_dataset.R</code> and <code>06_figures_spotlight.R</code>.</p>
+</div>
+
+<div class="card HIGH">
+<span class="badge b-HIGH">HIGH</span> <span class="k">CE-002 — Hard-coded factor levels in slope charts</span> · <span class="status fixed">Status: Fixed</span>
+<p><b>What (legacy):</b> Slope charts set <code>factor(year_quarter_num, levels=c(2021.25,2021.5,...,2022.5), labels=c("2021-1",...))</code>. Any quarter outside that literal set is silently dropped to <code>NA</code>, so the chart breaks for every release other than 2022 Q3.</p>
+<p><b>Fix:</b> <code>04_figures_timeseries.R</code> and <code>06_figures_spotlight.R</code> derive ordered period labels from the data (<code>period_order_num = year*10 + qtr</code>, <code>period_chr = "YYYY-Q"</code>), so the axis adapts to the target release automatically.</p>
+</div>
+
+<div class="card MEDIUM">
+<span class="badge b-MEDIUM">MEDIUM</span> <span class="k">CE-003 — <code>left_join()</code> without explicit <code>by=</code></span> · <span class="status fixed">Status: Fixed</span>
+<p><b>What (legacy):</b> Joins to <code>population</code>, <code>industry_crosswalk</code>, <code>us_county_latlng</code>, and <code>counties</code> relied on implicit common-column matching. This is fragile (a renamed/added shared column silently changes the join) and can alter row cardinality without warning.</p>
+<p><b>Fix:</b> All joins now pass explicit <code>by=</code> keys (<code>"fips"</code>, <code>"GEOID"</code>, <code>"area_fips"</code>, <code>"industry_code"</code>).</p>
+</div>
+
+<div class="card MEDIUM">
+<span class="badge b-MEDIUM">MEDIUM</span> <span class="k">CE-004 — Hard-coded absolute paths and <code>setwd()</code></span> · <span class="status fixed">Status: Fixed</span>
+<p><b>What (legacy):</b> <code>path_project</code> set to user-specific Dropbox paths, then <code>setwd()</code>. Non-portable and breaks on any new machine.</p>
+<p><b>Fix:</b> <code>00_setup.R</code> / <code>run_all.R</code> use a <code>project_directories</code> list keyed by <code>Sys.info()[["user"]]</code> with repo-relative paths underneath; failure is loud if the user is unmapped.</p>
+</div>
+
+<div class="card LOW">
+<span class="badge b-LOW">LOW</span> <span class="k">CE-005 — Ambiguous <code>year + qtr/4</code> period encoding</span> · <span class="status fixed">Status: Fixed (slope charts) / Advisory (maps)</span>
+<p><b>What:</b> <code>year_quarter = year + qtr/4</code> maps Q4 to the next integer year (2024 Q4 → 2025.0), which is why the legacy slope charts needed hand-built label vectors. Refactor uses explicit <code>period_order_num</code>/<code>period_chr</code> for slope-chart axes. The animated maps keep the numeric for the continuous transition timeline (cosmetic only).</p>
+</div>
+
+<div class="card SUGGESTION">
+<span class="badge b-SUGGESTION">SUGGESTION</span> <span class="k">CE-006 — Unused packages loaded</span> · <span class="status fixed">Status: Fixed</span>
+<p><b>What (legacy):</b> <code>ggforce</code>, <code>ggmap</code>, <code>ggrepel</code>, and <code>plm</code> were loaded but never used. <b>Fix:</b> dropped from <code>00_setup.R</code> with a note.</p>
+</div>
+
+<div class="card SUGGESTION">
+<span class="badge b-SUGGESTION">SUGGESTION</span> <span class="k">CE-007 — Copy-pasted per-year pull loops</span> · <span class="status fixed">Status: Fixed</span>
+<p><b>What (legacy):</b> Ten near-identical blocks (five years × industry/national) each with a per-quarter loop. <b>Fix:</b> a single year-quarter <code>pull_grid_df</code> drives one loop for each slice; the target year is truncated at <code>target_qtr_int</code>.</p>
+</div>
+
+<div class="card INFO">
+<span class="badge b-INFO">INFO</span> <span class="k">CE-008 — Orphan / incomplete data files</span> · <span class="status advisory">Status: Advisory</span>
+<p><b>What:</b> <code>cb_2018_us_state_500k.shp</code> ships without its sidecar files (<code>.shx/.dbf/.prj</code>), so it cannot be read as a shapefile. <code>gadm36_USA_2_sp.rds</code> is never referenced by the analysis. Both were relocated to <code>data/raw/</code> for preservation; neither is used by the pipeline (geometry comes from <code>tigris</code>). Consider removing or completing them.</p>
+</div>
+
+<h2>Data Currency</h2>
+<table>
+<tr><th>Dataset</th><th>Used via</th><th>Latest available</th><th>Status</th></tr>
+<tr><td>QCEW</td><td><code>qcew_api()</code> → migrate to BLS open CSV</td><td>2025 Q4 (released 2026-06-02)</td><td>Current target; access path broken (CE-001)</td></tr>
+<tr><td>Census Population Estimates (PEP)</td><td><code>tidycensus::get_estimates()</code></td><td>Vintage 2024 (default)</td><td>Current; see MR-002 (vintage vs. target quarter)</td></tr>
+<tr><td>County cartographic boundaries</td><td><code>tigris::counties()</code></td><td>Parameterized (<code>counties_geo_year_int = 2024</code>)</td><td>Current</td></tr>
+</table>
+
+<h2>Reviewed files</h2>
+<table>
+<tr><th>File</th><th>Errors found</th></tr>
+<tr><td><code>code/00_setup.R</code></td><td>—</td></tr>
+<tr><td><code>code/01_build_dataset.R</code></td><td>CE-001</td></tr>
+<tr><td><code>code/02_build_map_data.R</code></td><td>— (legacy CE re: establishment color fixed; see AI-skeptic AS-001)</td></tr>
+<tr><td><code>code/03_figures_maps.R</code></td><td>—</td></tr>
+<tr><td><code>code/04_figures_timeseries.R</code></td><td>CE-002 (fixed)</td></tr>
+<tr><td><code>code/05_figures_rankings.R</code></td><td>CE-003 (fixed)</td></tr>
+<tr><td><code>code/06_figures_spotlight.R</code></td><td>CE-001</td></tr>
+<tr><td><code>code/run_all.R</code></td><td>CE-004 (fixed)</td></tr>
+<tr><td><code>archive/QCEW_Analysis_2022_q3_date_3_08_2023.R</code></td><td>CE-001..CE-007 (original source of all findings)</td></tr>
+</table>
+
+</body>
+</html>

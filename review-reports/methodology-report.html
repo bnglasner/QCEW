@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QCEW Rebuild — Methodology Report</title>
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:980px;margin:2rem auto;padding:0 1.2rem;color:#1a1a1a;line-height:1.5}
+  h1{border-bottom:3px solid #333;padding-bottom:.4rem}
+  h2{margin-top:2rem;border-bottom:1px solid #ccc;padding-bottom:.2rem}
+  .meta{color:#555;font-size:.9rem}
+  .card{border:1px solid #ddd;border-left-width:6px;border-radius:6px;padding:.8rem 1rem;margin:1rem 0;background:#fafafa}
+  .HIGH{border-left-color:#e65100}.MEDIUM{border-left-color:#f9a825}.LOW{border-left-color:#2e7d32}.INFO{border-left-color:#6a1b9a}
+  .badge{display:inline-block;color:#fff;font-size:.72rem;font-weight:700;padding:.12rem .5rem;border-radius:10px}
+  .b-HIGH{background:#e65100}.b-MEDIUM{background:#f9a825;color:#222}.b-LOW{background:#2e7d32}.b-INFO{background:#6a1b9a}
+  code{background:#f0f0f0;padding:.05rem .3rem;border-radius:4px;font-size:.85rem}
+  .k{font-weight:700}
+</style>
+</head>
+<body>
+<h1>Methodology Report</h1>
+<p class="meta">Project: QCEW Employment &amp; Establishment Dynamics · Date: 2026-06-05 · Reviewer rules: <code>.claude/rules/methodology-rules.md</code></p>
+
+<p><b>Inferred design:</b> Descriptive / exploratory. The code computes and visualizes over-the-year (OTY) levels and percentage changes from the QCEW; it implements no causal identification strategy (no DiD, RD, IV, matching, or panel FE). The standard-error, clustering, and multiple-testing rules do not apply because no inferential estimates are produced. Findings below therefore concentrate on sample definition, variable usage, and descriptive-analysis disclosure, per the "err on the side of flagging" directive.</p>
+
+<h2>Findings</h2>
+
+<div class="card MEDIUM">
+<span class="badge b-MEDIUM">MEDIUM</span> <span class="k">MR-001 — Undocumented sample restriction: <code>state != "53"</code> (legacy)</span>
+<p>The legacy establishment ranking chart silently excluded Washington (<code>state != "53"</code>) with no comment. This is the classic replication-failure pattern. It was specific to the 2022 Q3 narrative and is <b>not</b> carried into the generalized pipeline; <code>05_figures_rankings.R</code> documents the removal. Confirm this matches intent for future releases.</p>
+</div>
+
+<div class="card MEDIUM">
+<span class="badge b-MEDIUM">MEDIUM</span> <span class="k">MR-002 — Population vintage vs. QCEW target quarter</span>
+<p><code>tidycensus::get_estimates()</code> returns Population Estimates Program data at a fixed vintage (default 2024, verified against tidycensus docs). The ranking charts threshold <code>population &gt;= 100,000</code> using that vintage while the employment/wage measures are 2025 Q4. The mismatch is small and defensible but should be disclosed in any writeup. Recommendation: set the <code>vintage</code> argument explicitly so the population year is recorded, not implicit.</p>
+</div>
+
+<div class="card LOW">
+<span class="badge b-LOW">LOW</span> <span class="k">MR-003 — Discretionary display/sample parameters</span>
+<p>Two discretionary choices affect what readers see: the ±25% color cap on the maps and the 100,000-population county filter. Both are legitimate but were undocumented in the legacy script. They are now centralized and named in <code>00_setup.R</code> (<code>pct_cap_num</code>, <code>pop_threshold_int</code>) and the cap is stated in each map caption. Consider a one-line rationale in the writeup.</p>
+</div>
+
+<div class="card LOW">
+<span class="badge b-LOW">LOW</span> <span class="k">MR-004 — Private-sector restriction (<code>own_code == 5</code>)</span>
+<p>All pulls filter to private-sector ownership. Appropriate, but it means government employment/establishments are excluded from every figure. Now disclosed in <code>PROJECT.md</code> and <code>README.md</code>; keep that disclosure in public-facing outputs.</p>
+</div>
+
+<div class="card LOW">
+<span class="badge b-LOW">LOW</span> <span class="k">MR-005 — No external validation of pulled totals</span>
+<p>The pipeline does not cross-check pulled national aggregates against the published BLS QCEW news release for the target quarter. For a near-census this is low risk, but a one-line spot-check (national private employment/establishment counts vs. the BLS summary) would catch a malformed pull early. Recommended as a lightweight QA step in <code>01_build_dataset.R</code>.</p>
+</div>
+
+<div class="card INFO">
+<span class="badge b-INFO">INFO</span> <span class="k">MR-006 — Survey weights not applicable</span>
+<p>The QCEW is a near-universal administrative count derived from unemployment-insurance records, not a sample survey. The survey-weight rules (MR-VU1/VU2) do not apply: there are no sampling weights to use or misuse. Recorded explicitly so the absence of weights is not later mistaken for an omission.</p>
+</div>
+
+<div class="card INFO">
+<span class="badge b-INFO">INFO</span> <span class="k">MR-007 — County map subsetting relies on the geometry join</span>
+<p>The county map dataset applies no explicit aggregation-level filter; it relies on the join to county geometry (5-digit <code>GEOID</code>) to retain only county rows. This works because state/national/MSA area codes do not collide with 5-digit county FIPS, but an explicit <code>agglvl_code</code> filter on the county total would make the intent self-evident and guard against future QCEW layout changes.</p>
+</div>
+
+<p class="meta">Note: the document-consistency and number-verification reviews are not applicable — no manuscript or numbered writeup is present in the repository (the legacy tweet drafts are archived under <code>archive/</code> and contain 2022 Q3 figures only).</p>
+
+</body>
+</html>

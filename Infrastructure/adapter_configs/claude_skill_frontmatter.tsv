@@ -1,0 +1,17 @@
+# Canonical Claude skill frontmatter overrides.
+# Tab-separated. Columns: skill_name<TAB>argument_hint<TAB>allowed_tools_csv<TAB>description
+# Used by Infrastructure/scripts/manage_generated_copies.sh to emit .claude/skills/<name>/SKILL.md frontmatter.
+# Add a row whenever a new canonical skill is added under Infrastructure/skills/ or Infrastructure/style/skills/
+# that needs custom argument hints, an allowed-tools list, or a richer description.
+# Lines starting with '#' and blank lines are ignored.
+#
+# Defaults applied when a skill has no row in this file:
+#   argument_hint    = [task scope]
+#   allowed_tools    = Read,Write,Edit,Bash,Glob
+#   description      = Run the <skill_name> skill from canonical Infrastructure guidance.
+#
+eig-style-apply	[target files or output type]	Read,Write,Edit,Bash,Glob	Apply EIG style tokens/themes to figures and tables in R, Python, or Stata using vendored style assets in this repository.
+eig-style-datawrapper	[manifest path]	Read,Write,Edit,Bash,Glob	Enforce EIG Datawrapper style and governance compliance using vendored validators and policy docs.
+eig-style-review	[target files or outputs]	Read,Write,Edit,Bash,Glob	Review figures, tables, and style-relevant code for EIG style-system compliance.
+literature-intake	[topic, source, or document]	Read,Write,Edit,Bash,Glob	Find, ingest, index, and reuse papers or data dictionaries using the repository literature catalog and intake playbook.
+tufte-viz-claude-code	[chart or figure to design or critique]	Read,Write,Edit,Bash,Glob	Ideate and critique data visualizations using Edward Tufte's principles: data-ink ratio, chartjunk, lie factor, small multiples, and graphical integrity.

@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>QCEW Rebuild — AI Skeptic Report</title>
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:980px;margin:2rem auto;padding:0 1.2rem;color:#1a1a1a;line-height:1.5}
+  h1{border-bottom:3px solid #333;padding-bottom:.4rem}
+  h2{margin-top:2rem;border-bottom:1px solid #ccc;padding-bottom:.2rem}
+  .meta{color:#555;font-size:.9rem}
+  .card{border:1px solid #ddd;border-left-width:6px;border-radius:6px;padding:.8rem 1rem;margin:1rem 0;background:#fafafa}
+  .CRITICAL{border-left-color:#b00020}.HIGH{border-left-color:#e65100}.MEDIUM{border-left-color:#f9a825}.LOW{border-left-color:#2e7d32}.INFO{border-left-color:#6a1b9a}
+  .badge{display:inline-block;color:#fff;font-size:.72rem;font-weight:700;padding:.12rem .5rem;border-radius:10px}
+  .b-CRITICAL{background:#b00020}.b-HIGH{background:#e65100}.b-MEDIUM{background:#f9a825;color:#222}.b-LOW{background:#2e7d32}.b-INFO{background:#6a1b9a}
+  code{background:#f0f0f0;padding:.05rem .3rem;border-radius:4px;font-size:.85rem}
+  table{border-collapse:collapse;width:100%;font-size:.86rem;margin:1rem 0}
+  th,td{border:1px solid #ccc;padding:.4rem .6rem;text-align:left;vertical-align:top}
+  th{background:#f0f0f0}
+  .k{font-weight:700}
+</style>
+</head>
+<body>
+<h1>AI Skeptic Report</h1>
+<p class="meta">Project: QCEW Employment &amp; Establishment Dynamics · Date: 2026-06-05 · Reviewer rules: <code>.claude/rules/ai-skeptic-rules.md</code> · Stance: output is wrong until proven otherwise.</p>
+
+<h2>Fabrication &amp; correctness findings</h2>
+
+<div class="card CRITICAL">
+<span class="badge b-CRITICAL">CRITICAL</span> <span class="k">AS-001 — Establishment map color encoded from the wrong variable (legacy bug, now fixed)</span>
+<p><b>What was claimed:</b> The legacy comment reads "Cap the visual % change … at 25%". <b>What was found:</b> the establishment color variable was seeded from the <i>count</i> change, not the <i>percent</i> change:</p>
+<p><code>dynamic$oty_qtrly_estabs_pct_chg_edit &lt;- dynamic$oty_qtrly_estabs_chg</code> &nbsp;(should be <code>...$oty_qtrly_estabs_pct_chg</code>)</p>
+<p>The diverging color scale (red↔green, midpoint 0, capped ±25) was therefore driven by raw establishment counts, not percentages — the map's color meaning did not match its legend or caption. Present in both the main establishment map and the NAICS 54 map. <b>How verified:</b> direct line read of <code>archive/QCEW_Analysis_2022_q3_date_3_08_2023.R</code> (lines 251, 693). <b>Fix:</b> corrected in <code>02_build_map_data.R</code> and <code>06_figures_spotlight.R</code> with inline markers; the employment map was always correct.</p>
+</div>
+
+<div class="card MEDIUM">
+<span class="badge b-MEDIUM">MEDIUM</span> <span class="k">AS-002 — Verify <code>get_estimates()</code> arguments against current API</span>
+<p><b>Claim:</b> <code>tidycensus::get_estimates(geography="county", product="characteristics", breakdown="SEX", breakdown_labels=TRUE)</code>. <b>Found:</b> verified against current tidycensus docs — for 2020+ the only supported product is <code>"characteristics"</code>, <code>breakdown</code> accepts <code>"SEX"</code>, and county geography is supported; PEP is served from a flat file (not the API) since 2020. The call is valid. Set <code>vintage</code> explicitly (see MR-002). <b>Method:</b> web verification of <code>walker-data.com/tidycensus</code>.</p>
+</div>
+
+<div class="card MEDIUM">
+<span class="badge b-MEDIUM">MEDIUM</span> <span class="k">AS-003 — <code>qcew_api()</code> does not exist in current blscrapeR</span>
+<p>Cross-referenced with code-error CE-001. The function is fabricated relative to the <i>current</i> package (it existed when the legacy script was written, but was removed). Flagged here as the most consequential "referenced entity no longer exists" issue. <b>Method:</b> blscrapeR NEWS/changelog.</p>
+</div>
+
+<div class="card LOW">
+<span class="badge b-LOW">LOW</span> <span class="k">AS-004 — Edge-case fragility in ranking selection</span>
+<p><code>na.omit()</code> then <code>head(5)</code> assumes at least five non-missing counties remain after filtering to ≥100,000 population and the most-recent quarter. If a measure is sparse in a given release, the chart will silently show fewer than five bars. Low risk for large counties, but worth a guard (<code>nrow</code> check) or an explicit note.</p>
+</div>
+
+<h2>Assumption inventory</h2>
+<p>Implicit analytical choices, now centralized in <code>00_setup.R</code>. None remain undisclosed; the high-impact ones also appear in the methodology report.</p>
+<table>
+<tr><th>#</th><th>Assumption</th><th>Value</th><th>Impact</th><th>Disclosed?</th></tr>
+<tr><td>1</td><td>Ownership scope</td><td>private only (<code>own_code == 5</code>)</td><td>High</td><td>Yes (PROJECT/README, MR-004)</td></tr>
+<tr><td>2</td><td>Map color cap</td><td>±25% (<code>pct_cap_num</code>)</td><td>Medium</td><td>Yes (caption + setup)</td></tr>
+<tr><td>3</td><td>County size filter</td><td>≥100,000 pop (<code>pop_threshold_int</code>)</td><td>Medium</td><td>Yes (subtitle + setup)</td></tr>
+<tr><td>4</td><td>History window</td><td>4 years (<code>lookback_years_int</code>)</td><td>Medium</td><td>Yes (setup)</td></tr>
+<tr><td>5</td><td>Geographic exclusion</td><td>drop AK (02) &amp; HI (15) from maps</td><td>Low</td><td>Yes (comment)</td></tr>
+<tr><td>6</td><td>Aggregation levels</td><td>11 (national total), 14 (national×industry), 54 (state×industry), 74 (county×industry)</td><td>Medium</td><td>Partial — codes used inline; documented here</td></tr>
+<tr><td>7</td><td>Population vintage</td><td>2024 default</td><td>Low–Med</td><td>See MR-002 (make explicit)</td></tr>
+</table>
+
+<h2>Edge-case stress tests</h2>
+<p>Not executed: R is unavailable in the review environment and the pipeline requires live BLS/Census access. Static review only; see AS-004. Recommended on Ben's machine after the CE-001 data-source migration: inject an empty/short post-filter ranking subset and a single-quarter slope dataset to confirm graceful behavior.</p>
+
+</body>
+</html>

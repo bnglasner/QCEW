@@ -1,0 +1,31 @@
+# Canonical Claude slash-command frontmatter overrides.
+# Tab-separated. Columns: command_name<TAB>argument_hint<TAB>tools_csv<TAB>description
+# Used by Infrastructure/scripts/manage_generated_copies.sh to prepend YAML
+# frontmatter to .claude/commands/<name>.md so each command exposes a
+# description in the slash-command picker, an argument hint in autocomplete,
+# and an explicit tool allowlist. Without frontmatter the commands still
+# register (filename becomes the command name) but show no metadata.
+# Leave argument_hint blank for commands that take no arguments — the
+# renderer omits the argument-hint line in that case.
+# Add a row whenever a new canonical command is added under
+# Infrastructure/commands/.
+# Lines starting with '#' and blank lines are ignored.
+#
+# Defaults applied when a command has no row in this file:
+#   argument_hint = (omitted)
+#   tools         = Read,Write,Edit,Bash,Glob,Grep
+#   description   = Run the <command_name> playbook from canonical Infrastructure guidance.
+#
+cite	<source-description>	Read,Write,Edit,Bash,Glob,Grep	Format a citation from natural-language source information using EIG citation rules. Returns the formatted citation, inferred source type, and any missing required fields.
+cover-sheet	<project-description>	Read,Write,Edit,Bash,Glob,Grep	Generate an EIG publication cover sheet from a project description. Fills known fields, infers safe defaults, and marks unresolved items as [TO FILL].
+full-review	<target-dir>	Read,Write,Edit,Bash,Glob,Grep,Task	Run all five RA reviews concurrently (code errors, methodology, AI skeptic, document numbers, document-code consistency) on a target project and write five self-contained HTML reports to <target-dir>/review-reports/.
+literature-intake	<paper-or-source>	Read,Write,Edit,Bash,Glob,Grep,WebFetch	Add a paper, data dictionary, codebook, or technical note to the literature catalog under Infrastructure/references/literature/. Enforces required fields, stores the artifact, and updates the catalog index.
+maintenance-check		Read,Write,Edit,Bash,Glob,Grep	Run the repository maintenance sweep (generated-copy drift, internal path integrity, literature catalog, freshness signals) and report prioritized actions.
+orchestrate	<objective>	Read,Write,Edit,Bash,Glob,Grep,Task	Create and run a dependency-aware execution plan for a multi-step task, routing workstreams to specialist agents per Infrastructure/AI_WORKFLOW.md. Replans after each wave until completion criteria are met.
+review-ai	<target-dir>	Read,Write,Edit,Bash,Glob,Grep,Task	Run the AI skeptic review on a target project: spawns the ai-skeptic sub-agent and writes ai-skeptic-report.html to <target-dir>/review-reports/. Does not require a successful pipeline run first.
+review-code	<target-dir>	Read,Write,Edit,Bash,Glob,Grep,Task	Run the code error review on a target project: spawns the code-reviewer sub-agent and writes code-error-report.html to <target-dir>/review-reports/.
+review-consistency	<target-dir> [document-path]	Read,Write,Edit,Bash,Glob,Grep,Task	Run the document-code consistency review on a target project: spawns the conceptual-consistency-reviewer sub-agent and writes doc-consistency-report.html to <target-dir>/review-reports/.
+review-methodology	<target-dir>	Read,Write,Edit,Bash,Glob,Grep,Task	Run the methodology review on a target project: spawns the methodology-reviewer sub-agent and writes methodology-report.html to <target-dir>/review-reports/.
+review-numbers	<target-dir> [document-path]	Read,Write,Edit,Bash,Glob,Grep,Task	Run the document number verification review on a target project: spawns the data-consistency-reviewer sub-agent and writes doc-number-report.html to <target-dir>/review-reports/.
+review-style	<file-path-or-text>	Read,Write,Edit,Bash,Glob,Grep	Audit a document or passage against EIG writing, citation, and figure-style rules using eig-reviewer behavior. Returns a structured issue list with concrete fixes.
+smart-brevity	<text>	Read,Write,Edit,Bash,Glob,Grep	Rewrite text using Smart Brevity principles while keeping EIG writing conventions. Returns the rewrite plus a short change log explaining what was tightened and why.

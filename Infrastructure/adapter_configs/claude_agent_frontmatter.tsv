@@ -1,0 +1,24 @@
+# Canonical Claude subagent frontmatter overrides.
+# Tab-separated. Columns: agent_name<TAB>tools_csv<TAB>description
+# Used by Infrastructure/scripts/manage_generated_copies.sh to prepend YAML
+# frontmatter to .claude/agents/<name>.md so each agent registers as a valid
+# subagent_type. Without this frontmatter Claude Code treats the files as
+# reference docs and falls back to general-purpose subagents.
+# Add a row whenever a new agent is added under Infrastructure/agents/.
+# Lines starting with '#' and blank lines are ignored.
+#
+# Defaults applied when an agent has no row in this file:
+#   tools       = Read,Write,Edit,Bash,Glob,Grep
+#   description = Repository specialist defined in Infrastructure/agents/<name>.md.
+#
+ai-skeptic	Read,Write,Bash,Glob,Grep,WebSearch,WebFetch	Read-only AI skeptic that hunts for fabricated citations, hallucinated function calls, undisclosed assumptions, edge-case fragility, and confidence miscalibration in AI-assisted research code and prose. Produces a single self-contained HTML report. Use proactively whenever AI-generated code or text is being reviewed.
+code-reviewer	Read,Write,Bash,Glob,Grep,WebSearch	Read-only research code reviewer for definitive bugs and efficiency/readability suggestions in R, Python, and Stata analysis code. Produces a self-contained HTML error report. Use when reviewing research scripts for correctness and quality, not methodology.
+conceptual-consistency-reviewer	Read,Write,Bash,Glob,Grep	Read-only reviewer that cross-references every empirical claim in a written document against the code that produced it and flags inconsistencies, omissions, or undisclosed choices. Produces a self-contained HTML report. Use when auditing alignment between a paper or brief and its underlying analysis code.
+data-consistency-reviewer	Read,Write,Bash,Glob,Grep	Read-only reviewer that extracts every numerical claim from a written document, traces each number to its source in code or data, and verifies correctness. Produces a self-contained HTML report. Use when auditing the numbers in a draft against the underlying analysis.
+eig-data-viz	Read,Write,Edit,Bash,Glob,Grep	EIG data-visualization specialist that produces publication-ready chart and figure code in R, Python, or Stata using canonical EIG style tokens and templates. Use when building or revising charts, maps, and figures for EIG outputs.
+eig-reviewer	Read,Write,Edit,Bash,Glob,Grep	EIG writing and style reviewer that audits prose, citations, figures, and tables for EIG compliance and returns a structured issue list with concrete corrections. Use when reviewing a draft for EIG voice, style, citation format, and visual standards.
+eig-style-guide-agent	Read,Write,Edit,Bash,Glob,Grep	EIG style-system specialist that applies and audits token-based color, typography, and chart/table conventions across R, Python, Stata, and Datawrapper outputs. Use when enforcing EIG visual standards on figures, tables, or chart code.
+eig-writer	Read,Write,Edit,Bash,Glob,Grep	EIG writing specialist that drafts and revises EIG publications, briefs, blog posts, and summaries in EIG voice with required structure, citation format, and lede conventions. Use when producing or tightening EIG-style prose.
+maintenance-agent	Read,Write,Edit,Bash,Glob,Grep	Repository maintenance specialist that runs periodic hygiene checks (generated-copy drift, internal path integrity, literature catalog, dependency freshness) and produces a prioritized maintenance report. Use proactively for template hygiene audits.
+methodology-reviewer	Read,Write,Bash,Glob,Grep,WebSearch	Read-only econometrics reviewer that infers the identification strategy from code and flags methodology and assumption concerns (DiD, RD, IV, matching, panel FE, standard errors, multiple testing, descriptive analysis, dataset variable usage). Produces a self-contained HTML report. Use when auditing research design and inference choices.
+orchestrator	Read,Write,Edit,Bash,Glob,Grep,Task,TaskCreate,TaskUpdate,TaskList	Top-level coordinator that routes work across review, writing, style, and maintenance specialists per Infrastructure/AI_WORKFLOW.md. Decides which specialist subagent to invoke, tracks dependencies, and sequences multi-stage reviews. Use when a request spans multiple specialist areas or when planning a /full-review pass.
